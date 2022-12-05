@@ -1,8 +1,24 @@
+#ifdef __linux__
 #include <sys/prctl.h>
+#elif __FreeBSD__
+#include <sys/procctl.h>
+#endif
+#include <sys/signal.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
+
+int do_ctl(int signo) {
+#ifdef __linux__
+    return prctl(PR_SET_PDEATHSIG, signo, 0, 0, 0);
+#elif __FreeBSD__
+    return procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &signo);
+#else
+    # no platform support
+    return -1
+#endif
+}
 
 int main(int argc, char **argv) {
     if(argc < 2)
@@ -16,8 +32,8 @@ int main(int argc, char **argv) {
         cmd = 2;
     }
     if (!signo)
-        signo = 15;
-    if (prctl(PR_SET_PDEATHSIG, signo, 0, 0, 0) < 0) {
+        signo = SIGTERM;
+    if (do_ctl(signo) < 0) {
         perror("prctl");
         return 1;
     }
